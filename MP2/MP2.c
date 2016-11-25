@@ -7,12 +7,105 @@
 #include <lpc_types.h>
 #include <lpc17xx_gpio.h>
 #include <lpc17xx_i2c.h>
+#include <lpc17xx_systick.h>
 #include "serial.h"
+#include "Keypad.c"
 
 I2C_M_SETUP_Type TransferConfig;
 uint8_t buffer[] = {0x00, 0x01};
-char output[30];
+char output[35];
+int msTicks = 0;
 
+void singleLine(void) {
+	uint8_t initScreen[12] = {0x00,0x34,0x0c,0x06,0x35,0x04,0x10,0x42,0x9f,0x34,0x02,0x20};
+
+
+	uint8_t writeBlank[33] = {0x40, 'h', 'e', 'l', 'l', 'o', 0xA0, 'w', 'o', 'r', 'l', 'd', 0xA0, 0xA0, 0xA0, 0xA0, 0xA0, 0xA0, 0xA0, 0xA0, 0xA0, 0xA0, 0xA0, 0xA0, 0xA0, 0xA0, 0xA0, 0xA0, 0xA0, 0xA0, 0xA0, 0xA0, 0xA0,};
+	TransferConfig.tx_length = 12;
+	TransferConfig.sl_addr7bit = 59;
+	TransferConfig.tx_data = initScreen;
+
+	if(I2C_MasterTransferData(I2C, &TransferConfig, I2C_TRANSFER_POLLING) == SUCCESS){
+		
+			
+			TransferConfig.tx_length = 33;
+			TransferConfig.tx_data = writeBlank;
+			I2C_MasterTransferData(I2C, &TransferConfig, I2C_TRANSFER_POLLING);
+		
+		
+	}
+}
+
+void twoLines(void){
+
+	uint8_t initScreen[12] = {0x00,0x34,0x0c,0x06,0x35,0x04,0x10,0x42,0x9f,0x34,0x02,0x20};
+	uint8_t writeBlank[33] = {0x40, 'h', 'e', 'l', 'l', 'o', 0xA0, 0xA0, 0xA0, 0xA0, 0xA0, 0xA0, 0xA0, 0xA0, 0xA0, 0xA0, 0xA0, 'w', 'o', 'r', 'l', 'd', 0xA0, 0xA0, 0xA0, 0xA0, 0xA0, 0xA0, 0xA0, 0xA0, 0xA0, 0xA0, 0xA0};
+	
+	TransferConfig.tx_length = 12;
+	TransferConfig.sl_addr7bit = 59;
+	TransferConfig.tx_data = initScreen;
+
+	if(I2C_MasterTransferData(I2C, &TransferConfig, I2C_TRANSFER_POLLING) == SUCCESS){
+		
+			
+			TransferConfig.tx_length = 33;
+			TransferConfig.tx_data = writeBlank;
+			I2C_MasterTransferData(I2C, &TransferConfig, I2C_TRANSFER_POLLING);
+			
+		
+		
+	}
+
+}
+
+void keypad(void){
+	while(screenCounter <=32){
+
+		int i = 1;
+
+		for(i=1;i<=4;i++){
+			//TransferConfig.tx_data = NULL;
+			TransferConfig.rx_length = 1;
+			TransferConfig.rx_data = buffer1;
+			enableColumn(i);
+			I2C_MasterTransferData(I2C, &TransferConfig, I2C_TRANSFER_POLLING);
+			char *key = getCharacter(buffer1[0]);
+			setupScreen();
+			sendToScreen(key);
+			sprintf(output1,"Returned %s \n\r", key);
+			write_usb_serial_blocking(output1, strlen(output));
+		}
+	}
+}
+
+void clearScreen(void){
+	
+	uint8_t clearS[33] = {0x40, 0xA0, 0xA0, 0xA0, 0xA0, 0xA0, 0xA0, 0xA0, 0xA0, 0xA0, 0xA0, 0xA0, 0xA0, 0xA0, 0xA0, 0xA0, 0xA0, 0xA0, 0xA0, 0xA0, 0xA0, 0xA0, 0xA0, 0xA0, 0xA0, 0xA0, 0xA0, 0xA0, 0xA0, 0xA0, 0xA0, 0xA0, 0xA0};	
+	TransferConfig.tx_length = 33;
+	TransferConfig.tx_data = clearS;
+	I2C_MasterTransferData(I2C, &TransferConfig, I2C_TRANSFER_POLLING);
+
+}
+void SysTick_Handler(void){
+	if(msTicks <10){
+		msTicks++;
+	}else if(msTicks < 15){
+		singleLine();
+		msTicks++;
+	}else if(msTicks < 25){
+		clearScreen();
+		msTicks++;
+	}else if(msTicks < 30){
+		twoLines();
+		msTicks++;
+	}else if(msTicks <40){
+		clearScreen();
+		msTicks++;	
+	}else{
+		keypad();
+		msTicks++;	
+	}
+}
 void main(void){
 	
 	serial_init();
@@ -60,9 +153,9 @@ void main(void){
 		if ( I2C_MasterTransferData(I2C, &TransferConfig, I2C_TRANSFER_POLLING) == SUCCESS) 
                 {
 			
-			sprintf(output,"Found a device at Address %d \n\r", i);
-			write_usb_serial_blocking(output,strlen(output));
+			
 			numberOfDevices++;	
+
 			
 		}
 
@@ -74,6 +167,11 @@ void main(void){
 	
 	sprintf(output,"Number of devices on I2C is %d \n\r", numberOfDevices);
 	write_usb_serial_blocking(output, strlen(output));
+	uint32_t bl;
+	FunctionalState Time = ENABLE;
+	SYSTICK_IntCmd(Time);
+	bl = SysTick_Config(SystemCoreClock / 10);
+	
 }
 
 

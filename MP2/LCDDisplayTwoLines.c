@@ -10,8 +10,13 @@
 #include "serial.h"
 
 I2C_M_SETUP_Type TransferConfig;
-uint8_t buffer[] = {0x00, 0x01};
-char output[30];
+uint8_t initScreen[12] = {0x00,0x34,0x0c,0x06,0x35,0x04,0x10,0x42,0x9f,0x34,0x02,0x20};
+
+
+uint8_t writeBlank[33] = {0x40, 'h', 'e', 'l', 'l', 'o', 0xA0, 0xA0, 0xA0, 0xA0, 0xA0, 0xA0, 0xA0, 0xA0, 0xA0, 0xA0, 0xA0, 'w', 'o', 'r', 'l', 'd', 0xA0, 0xA0, 0xA0, 0xA0, 0xA0, 0xA0, 0xA0, 0xA0, 0xA0, 0xA0, 0xA0,};
+
+
+
 
 void main(void){
 	
@@ -40,40 +45,24 @@ void main(void){
 	I2C_Init(I2C, 100000);
 	I2C_Cmd(I2C,ENABLE);
 
-	TransferConfig.tx_data = buffer;
-	TransferConfig.tx_length = 1;
+	TransferConfig.tx_length = 12;
+	TransferConfig.sl_addr7bit = 59;
+	TransferConfig.tx_data = initScreen;
 
-	    //for i = 1 to 127
-	    //Send a character to address i on the I2C
-	    //if TRUE
-	    //device counter++
-	    //end for
-
-	int numberOfDevices = 0;
-	int i = 0;
-
-	for(i=0; i<128; i++)
-        {
+	if(I2C_MasterTransferData(I2C, &TransferConfig, I2C_TRANSFER_POLLING) == SUCCESS){
 		
-		TransferConfig.sl_addr7bit = i;
+			
+			TransferConfig.tx_length = 33;
+			TransferConfig.tx_data = writeBlank;
+			I2C_MasterTransferData(I2C, &TransferConfig, I2C_TRANSFER_POLLING);
+			
 		
-		if ( I2C_MasterTransferData(I2C, &TransferConfig, I2C_TRANSFER_POLLING) == SUCCESS) 
-                {
-			
-			sprintf(output,"Found a device at Address %d \n\r", i);
-			write_usb_serial_blocking(output,strlen(output));
-			numberOfDevices++;	
-			
-		}
-
+		
 	}
-
 	
-	    //print on UART the number of devices
-
 	
-	sprintf(output,"Number of devices on I2C is %d \n\r", numberOfDevices);
-	write_usb_serial_blocking(output, strlen(output));
+	
+	
 }
 
 

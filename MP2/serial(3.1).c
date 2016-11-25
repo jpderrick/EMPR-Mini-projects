@@ -1,81 +1,88 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
-#include <lpc17xx_uart.h>
+// Serial code
+#include <lpc17xx_uart.h>		// Central include files
 #include <lpc17xx_pinsel.h>
 #include <lpc_types.h>
 #include <lpc17xx_gpio.h>
-#include <lpc17xx_i2c.h>
+#include <lpc17xx_systick.h>
+#include <LPC17xx.h>
 #include "serial.h"
+			// Local functions
 
-I2C_M_SETUP_Type TransferConfig;
-uint8_t buffer[] = {0x00, 0x01};
-char output[30];
+// Entry point for the program
 
-void main(void){
-	
-	serial_init();
-	    //DONE Init the ports to act as I2C Settors
-	    //DONE Set the Clock Rate
-	    //Character buffer with one byte
-	    //Send this through each addres (2^7) addresses possible
 
-	    //PIN Configurations for I2C mode
-	PINSEL_CFG_Type PinCfg;
-	PinCfg.Funcnum = 3;
-	PinCfg.OpenDrain = 0;
-	PinCfg.Pinmode = 0;
-	PinCfg.Portnum = 0;
-	PinCfg.Pinnum = 0;
+int msTicks = 0;
+int led = 0;
 
-	    //Configure P0.0
-	PINSEL_ConfigPin(&PinCfg);
 
-	    //Configure P0.1
-	PinCfg.Pinnum = 1;
-	PINSEL_ConfigPin(&PinCfg);
 
-	LPC_I2C_TypeDef *I2C = LPC_I2C1;
-	I2C_Init(I2C, 100000);
-	I2C_Cmd(I2C,ENABLE);
-
-	TransferConfig.tx_data = buffer;
-	TransferConfig.tx_length = 1;
-
-	    //for i = 1 to 127
-	    //Send a character to address i on the I2C
-	    //if TRUE
-	    //device counter++
-	    //end for
-
-	int numberOfDevices = 0;
-	int i = 0;
-
-	for(i=0; i<128; i++)
-        {
-		
-		TransferConfig.sl_addr7bit = i;
-		
-		if ( I2C_MasterTransferData(I2C, &TransferConfig, I2C_TRANSFER_POLLING) == SUCCESS) 
-                {
+void SysTick_Handler(void){
+	msTicks++;
+	int i;
+	switch(led){
+		case 0:
+			if(msTicks < 10 ){
+				GPIO_SetDir(1, 0x40000, 1);
+				GPIO_SetValue(1, 0x40000);
+			}else{
+				GPIO_ClearValue(1,0x40000);
+				led = 1;
+				
+			}
+			break;
+		case 1:
 			
-			sprintf(output,"Found a device at Address %d \n\r", i);
-			write_usb_serial_blocking(output,strlen(output));
-			numberOfDevices++;	
-			
-		}
-
+			if((msTicks < 20) && (msTicks > 10)){
+				GPIO_SetDir(1, 0x100000, 1);
+				GPIO_SetValue(1, 0x100000);
+			}else{
+				GPIO_ClearValue(1,0x100000);
+				led = 2;
+				
+			}
+			break;
+		case 2:
+			if((msTicks < 30) && (msTicks > 20)){
+				GPIO_SetDir(1, 0x200000, 1);
+				GPIO_SetValue(1, 0x200000);
+			}else{
+				GPIO_ClearValue(1,0x200000);
+				led = 3;
+				
+			}
+			break;
+		case 3:
+			if((msTicks < 40) && (msTicks > 30)){
+				GPIO_SetDir(1, 0x800000, 1);
+				GPIO_SetValue(1, 0x800000);
+			}else{
+				GPIO_ClearValue(1,0x800000);
+				led = 0;
+				
+			}
+			break;	
 	}
-
 	
-	    //print on UART the number of devices
-
-	
-	sprintf(output,"Number of devices on I2C is %d \n\r", numberOfDevices);
-	write_usb_serial_blocking(output, strlen(output));
 }
 
+			
+void main(void)
+{	
+	serial_init();
+
+
+	uint32_t bl;
+	FunctionalState Time = ENABLE;
+	SYSTICK_IntCmd(Time);
+	int i;
+	bl = SysTick_Config(SystemCoreClock / 10);
+
+	
+	
+	
+
+	while(1);
+}
 
 // Read options
 int read_usb_serial_none_blocking(char *buf,int length)
@@ -129,3 +136,5 @@ void serial_init(void)
 	UART_TxCmd((LPC_UART_TypeDef *)LPC_UART0, ENABLE);			// Enable UART Transmit
 	
 }
+
+
